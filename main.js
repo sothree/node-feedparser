@@ -810,6 +810,17 @@ FeedParser.prototype.handleItem = function handleItem (node, type, options){
             item.guid_permaLink = false;
           }
         }
+        // http://cyber.law.harvard.edu/rss/rss.html#ltguidgtSubelementOfLtitemgt
+        // If the guid element has an attribute named "isPermaLink" with a value
+        // of true, the reader may assume that it is a permalink to the item,
+        // that is, a url that can be opened in a Web browser, that points to
+        // the full item described by the <item> element.
+        // isPermaLink is optional, its default value is true. If its value is
+        // false, the guid may not be assumed to be a url, or a url to anything
+        // in particular.
+        if (item.guid && type == 'rss' && name == 'guid' && !(attrs.ispermalink && attrs.ispermalink.match(/false/i))) {
+          item.permalink = item.guid;
+        }
         break;
       case('author'):
         var author = {};
@@ -1016,13 +1027,24 @@ FeedParser.prototype.handleItem = function handleItem (node, type, options){
 
 // Naive Stream API
 FeedParser.prototype._transform = function (data, encoding, done) {
-  this.stream.write(data);
-  done();
+  try {
+    this.stream.write(data);
+    done();
+  }
+  catch (e) {
+    done(e);
+    this.push(null); // Manually trigger and end, since we can't reliably do any more parsing
+  }
 };
 
 FeedParser.prototype._flush = function (done) {
-  this.stream.end();
-  done();
+  try {
+    this.stream.end();
+    done();
+  }
+  catch (e) {
+    done(e);
+  }
 };
 
 exports = module.exports = FeedParser;
